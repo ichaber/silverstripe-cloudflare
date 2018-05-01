@@ -1,7 +1,25 @@
 <?php
 
-class CloudFlare extends Object
+namespace SteadLane\CloudFlare;
+
+use Psr\SimpleCache\CacheInterface;
+use SilverStripe\CMS\Model\SiteTree;
+use SilverStripe\Core\Config\Config_ForClass;
+use SilverStripe\Core\Environment;
+use SilverStripe\Core\Extensible;
+use SilverStripe\Core\Injector\Injectable;
+use SilverStripe\Core\Injector\Injector;
+use SilverStripe\Dev\Deprecation;
+use SilverStripe\Core\Convert;
+use SilverStripe\Control\Session;
+use SilverStripe\Core\Config\Config;
+
+
+class CloudFlare
 {
+    use Injectable;
+    use Extensible;
+
     /**
      * @var string
      */
@@ -19,7 +37,7 @@ class CloudFlare extends Object
      * Get a singleton instance. Use the default Object functionality
      *
      * @deprecated Use CloudFlare::singleton() instead
-     * @return \CloudFlare
+     * @return CloudFlare
      */
     public static function inst()
     {
@@ -35,7 +53,9 @@ class CloudFlare extends Object
      */
     public function hasCFCredentials()
     {
-        if (!getenv('TRAVIS') && (!defined('CLOUDFLARE_AUTH_EMAIL') || !defined('CLOUDFLARE_AUTH_KEY'))) {
+        if (!Environment::getEnv('TRAVIS') &&
+            (!Environment::getEnv('CLOUDFLARE_AUTH_EMAIL') ||
+                !Environment::getEnv('CLOUDFLARE_AUTH_KEY'))) {
             return false;
         }
 
@@ -49,10 +69,12 @@ class CloudFlare extends Object
      */
     public function getCFCredentials()
     {
+        $email = Environment::getEnv('CLOUDFLARE_AUTH_EMAIL');
+        $key = Environment::getEnv('CLOUDFLARE_AUTH_KEY');
         if ($this->hasCFCredentials()) {
             return array(
-                'email' => CLOUDFLARE_AUTH_EMAIL,
-                'key'   => CLOUDFLARE_AUTH_KEY
+                'email' => $email,
+                'key' => $key
             );
         }
 
@@ -67,7 +89,7 @@ class CloudFlare extends Object
      *
      * @param $fileOrUrl
      *
-     * @return bool
+     * @return array
      */
     public function purgeSingle($fileOrUrl)
     {
@@ -86,8 +108,9 @@ class CloudFlare extends Object
      * Purge a specific SiteTree instance, or by its ID
      *
      * @deprecated This method will be removed in favor for CloudFlare_Purge functionality
-
-     * @param  SiteTree|int $pageOrId
+     *
+     * @param  SiteTree |int $pageOrId
+     *
      * @return bool
      */
     public function purgePage($pageOrId)
@@ -104,7 +127,7 @@ class CloudFlare extends Object
      *
      * @param array $filesOrUrls
      *
-     * @return bool
+     * @return array
      */
     public function purgeMany(array $filesOrUrls)
     {
@@ -186,13 +209,13 @@ class CloudFlare extends Object
     {
         $serverName = '';
         if (!empty($_SERVER['SERVER_NAME'])) {
-            $server = \Convert::raw2xml($_SERVER); // "Fixes" #1
+            $server = Convert::raw2xml($_SERVER); // "Fixes" #1
             $serverName = $server['SERVER_NAME'];
         }
 
         // CI support
-        if (getenv('TRAVIS')) {
-            $serverName = getenv('CLOUDFLARE_DUMMY_SITE');
+        if (Environment::getEnv('TRAVIS')) {
+            $serverName = Environment::getEnv('CLOUDFLARE_DUMMY_SITE');
         }
 
         // Remove protocols, etc
@@ -211,6 +234,7 @@ class CloudFlare extends Object
 
     /**
      * Returns whether caching is enabled for the CloudFlare class instance
+     *
      * @return bool
      */
     public function getCacheEnabled()
@@ -226,9 +250,12 @@ class CloudFlare extends Object
     public function fetchZoneID()
     {
         if ($this->getCacheEnabled()) {
-            $factory = \SS_Cache::factory("CloudFlare");
+            /**
+             * @var CacheInterface $cache
+             */
+            $cache = Injector::inst()->get(CacheInterface::class . "CloudFlare");
 
-            if ($cache = $factory->load(self::CF_ZONE_ID_CACHE_KEY)) {
+            if ($cache = $cache->get(self::CF_ZONE_ID_CACHE_KEY)) {
                 $this->isReady(true);
 
                 return $cache;
@@ -279,8 +306,8 @@ class CloudFlare extends Object
 
         $zoneID = $array['result'][0]['id'];
 
-        if ($this->getCacheEnabled() && isset($factory)) {
-            $factory->save($zoneID, self::CF_ZONE_ID_CACHE_KEY);
+        if ($this->getCacheEnabled() && isset($cache)) {
+            $cache->set($zoneID, self::CF_ZONE_ID_CACHE_KEY);
         }
 
         $this->isReady(true);
@@ -295,6 +322,7 @@ class CloudFlare extends Object
      * @param string $method
      *
      * @param null $isRecursing
+     *
      * @deprecated Moved to CloudFlare_Purge
      * @return array|string
      */
@@ -345,6 +373,7 @@ class CloudFlare extends Object
      * Recursively find files with a specific extension(s) starting at the document root
      *
      * @param string|array $extensions
+     *
      * @deprecated
      * @return array
      */
@@ -359,12 +388,14 @@ class CloudFlare extends Object
      * Converts links to there "Stage" or "Live" counterpart
      *
      * @param array $urls
+     *
      * @deprecated To be removed in 2.0
      * @return array
      */
     protected function getStageUrls(array $urls = array())
     {
-        Deprecation::notice('2.0', 'This module will no longer support purging stage URLs, instead see the README for setting up our recommended page rules for SilverStripe');
+        Deprecation::notice('2.0',
+            'This module will no longer support purging stage URLs, instead see the README for setting up our recommended page rules for SilverStripe');
 
         foreach ($urls as &$url) {
             $parts = parse_url($url);
@@ -385,6 +416,7 @@ class CloudFlare extends Object
      * Generates URL variants (Stage urls, HTTPS, Non-HTTPS)
      *
      * @param $urls
+     *
      * @deprecated See CloudFlare_Purge::singleton()->getUrlVariants()
      * @return array
      */
@@ -397,14 +429,11 @@ class CloudFlare extends Object
     /**
      * Get or Set the Session Jar
      *
-     * @return array|mixed|null|\Session
+     * @return array|mixed|null| Session
      */
     public function getSessionJar()
     {
-        $session = \Session::get('slCloudFlare') ?: (\Session::set('slCloudFlare',
-            array())) ?: \Session::get('slCloudFlare');
-
-        return $session;
+        return Session::config()->get('slCloudFlare') ?: Session::config()->set('slCloudFlare', []);
     }
 
     /**
@@ -414,7 +443,7 @@ class CloudFlare extends Object
      */
     public function setSessionJar($data)
     {
-        \Session::set('slCloudFlare', $data);
+        Session::config()->set('slCloudFlare', $data);
 
         return $this;
     }
@@ -445,7 +474,7 @@ class CloudFlare extends Object
     {
         Deprecation::notice('2.0', 'This method has been moved to CloudFlare_Purge');
         $purger = CloudFlare_Purge::create();
-        
+
         return $purger->setResponse($response)->isSuccessful();
     }
 
@@ -474,6 +503,7 @@ class CloudFlare extends Object
      * Sets the X-Status header which creates the toast-like popout notification
      *
      * @deprecated See CloudFlare_Notifications::handleMessage()
+     *
      * @param $message
      */
     public function setToast($message)
@@ -515,18 +545,19 @@ class CloudFlare extends Object
 
     /**
      * Fetch the CloudFlare configuration
-     * @return \Config_ForClass
+     *
+     * @return Config_ForClass
      */
     public static function config()
     {
-        return \Config::inst()->forClass('CloudFlare');
+        return Config::forClass(CloudFlare::class);
     }
 
     /**
      * Sends our cURL requests with our custom auth headers
      *
-     * @param string $url    The URL
-     * @param null   $data   Optional array of data to send
+     * @param string $url The URL
+     * @param null $data Optional array of data to send
      * @param string $method GET, PUT, POST, DELETE etc
      *
      * @return string JSON
@@ -543,7 +574,7 @@ class CloudFlare extends Object
         curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, $curlTimeout);
         curl_setopt($curl, CURLOPT_TIMEOUT, $curlTimeout);
 
-        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, TRUE);
+        curl_setopt($curl, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
 
 
@@ -577,9 +608,9 @@ class CloudFlare extends Object
     public function getUserAgent()
     {
         return "Mozilla/5.0 " .
-        "(Macintosh; Intel Mac OS X 10_11_6) " .
-        "AppleWebKit/537.36 (KHTML, like Gecko) " .
-        "Chrome/53.0.2785.143 Safari/537.36";
+            "(Macintosh; Intel Mac OS X 10_11_6) " .
+            "AppleWebKit/537.36 (KHTML, like Gecko) " .
+            "Chrome/53.0.2785.143 Safari/537.36";
     }
 
     /**
@@ -589,10 +620,10 @@ class CloudFlare extends Object
      */
     public function getAuthHeaders()
     {
-        if (getenv('TRAVIS')) {
+        if (Environment::getEnv('TRAVIS')) {
             $auth = array(
-                'email' => getenv('AUTH_EMAIL'),
-                'key' => getenv('AUTH_KEY'),
+                'email' => Environment::getEnv('AUTH_EMAIL'),
+                'key' => Environment::getEnv('AUTH_KEY'),
             );
         } elseif (!$auth = $this->getCFCredentials()) {
             user_error("CloudFlare API credentials have not been provided.");

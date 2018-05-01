@@ -1,4 +1,17 @@
 <?php
+
+namespace SteadLane\CloudFlare\Extensions;
+
+use SilverStripe\ORM\DataList;
+use SilverStripe\ORM\DataObject;
+use SilverStripe\Forms\FieldList;
+use SilverStripe\Forms\FormAction;
+use SilverStripe\CMS\Model\SiteTree;
+use SilverStripe\CMS\Model\SiteTreeExtension;
+use SteadLane\CloudFlare\CloudFlare;
+use SteadLane\CloudFlare\CloudFlare_Purge;
+
+
 /**
  * Class CloudFlareExt
  *
@@ -9,7 +22,7 @@ class CloudFlareExtension extends SiteTreeExtension
     /**
      * Extension Hook
      *
-     * @param \SiteTree $original
+     * @param SiteTree $original
      */
     public function onAfterPublish(&$original)
     {
@@ -19,7 +32,7 @@ class CloudFlareExtension extends SiteTreeExtension
 
             $purger = CloudFlare_Purge::create();
             $shouldPurgeRelations = CloudFlare_Purge::singleton()->getShouldPurgeRelations();
-            $urls = array($_SERVER['DOCUMENT_ROOT'] . ltrim(DataObject::get_by_id("SiteTree", $this->owner->ID)->Link(), "/"));
+            $urls = array($_SERVER['DOCUMENT_ROOT'] . ltrim(DataObject::get_by_id(SiteTree::class, $this->owner->ID)->Link(), "/"));
 
             if ($shouldPurgeRelations) {
                 $top = $this->getTopLevelParent();
@@ -138,7 +151,7 @@ class CloudFlareExtension extends SiteTreeExtension
      *
      * @param null|int $parentID SiteTree.ParentID
      *
-     * @return \DataList
+     * @return DataList
      */
     public function getChildren($parentID = NULL)
     {
@@ -150,7 +163,7 @@ class CloudFlareExtension extends SiteTreeExtension
     /**
      * Traverses through the SiteTree hierarchy until it reaches the top level parent
      *
-     * @return \DataObject|Object
+     * @return DataObject | Object
      */
     public function getTopLevelParent() {
         $obj = $this->owner;
@@ -180,7 +193,7 @@ class CloudFlareExtension extends SiteTreeExtension
                 $this->getChildrenRecursive($child->ID, $output);
             }
 
-            $output[] = ltrim(DataObject::get_by_id('SiteTree', $child->ID)->Link(), "/");
+            $output[] = ltrim(DataObject::get_by_id(SiteTree::class, $child->ID)->Link(), "/");
         }
     }
 

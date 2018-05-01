@@ -1,11 +1,26 @@
 <?php
 
+namespace SteadLane\CloudFlare\Admin;
+
+use SilverStripe\Control\HTTPResponse;
+use SilverStripe\View\Requirements;
+use SilverStripe\Security\Permission;
+use SilverStripe\Security\Security;
+use SilverStripe\View\ArrayData;
+use SilverStripe\Security\PermissionProvider;
+use SilverStripe\Admin\LeftAndMain;
+use SteadLane\CloudFlare\CloudFlare;
+use SteadLane\CloudFlare\CloudFlare_Notifications;
+use SteadLane\CloudFlare\CloudFlare_Purge;
+use SteadLane\CloudFlare\forms\CloudFlareSingleUrlForm;
+
 class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
 {
+
     private static $url_segment = 'cloudflare';
-    private static $url_rule    = '/$Action/$ID/$OtherID';
-    private static $menu_title  = 'CloudFlare';
-    private static $menu_icon   = 'cloudflare/assets/cloudflare.jpg';
+    private static $url_rule = '/$Action/$ID/$OtherID';
+    private static $menu_title = 'CloudFlare';
+    private static $menu_icon = 'cloudflare/assets/cloudflare.jpg';
 
     private static $allowed_actions = array(
         'purge_all',
@@ -22,12 +37,12 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     public function providePermissions()
     {
         return array(
-            "CF_PURGE_ALL"         => "CloudFlare: Purge All Cache",
-            "CF_PURGE_CSS"         => "CloudFlare: Purge Stylesheet Cache",
-            "CF_PURGE_JAVASCRIPT"  => "CloudFlare: Purge Javascript Cache",
+            "CF_PURGE_ALL" => "CloudFlare: Purge All Cache",
+            "CF_PURGE_CSS" => "CloudFlare: Purge Stylesheet Cache",
+            "CF_PURGE_JAVASCRIPT" => "CloudFlare: Purge Javascript Cache",
             "CF_PURGE_STYLESHEETS" => "CloudFlare: Purge Stylesheet Cache",
-            "CF_PURGE_PAGE"        => "CloudFlare: Purge Page Cache",
-            "CF_PURGE_SINGLE"      => "CloudFlare: Purge Single File Cache",
+            "CF_PURGE_PAGE" => "CloudFlare: Purge Page Cache",
+            "CF_PURGE_SINGLE" => "CloudFlare: Purge Single File Cache",
         );
     }
 
@@ -42,7 +57,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     }
 
     /**
-     * @return \SS_HTTPResponse|string
+     * @return HTTPResponse |string
      */
     public function purge_all()
     {
@@ -65,7 +80,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     }
 
     /**
-     * @return \SS_HTTPResponse|string
+     * @return HTTPResponse|string
      */
     public function purge_stylesheets()
     {
@@ -79,7 +94,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     }
 
     /**
-     * @return \SS_HTTPResponse|string
+     * @return HTTPResponse|string
      */
     public function purge_javascript()
     {
@@ -93,7 +108,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     }
 
     /**
-     * @return \SS_HTTPResponse|string
+     * @return HTTPResponse|string
      */
     public function purge_images()
     {
@@ -107,7 +122,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     }
 
     /**
-     * @return \SS_HTTPResponse|string
+     * @return HTTPResponse|string
      */
     public function purge_single()
     {
@@ -168,7 +183,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
         $jar = CloudFlare::singleton()->getSessionJar();
 
         $array = array(
-            "Type"    => (array_key_exists('CFType', $jar)) ? $jar['CFType'] : false,
+            "Type" => (array_key_exists('CFType', $jar)) ? $jar['CFType'] : false,
             "Message" => (array_key_exists('CFMessage', $jar)) ? $jar['CFMessage'] : false,
         );
 
@@ -182,7 +197,7 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     {
         $jar = CloudFlare::singleton()->getSessionJar();
 
-        $jar['CFType']    = false;
+        $jar['CFType'] = false;
         $jar['CFMessage'] = false;
 
         CloudFlare::singleton()->setSessionJar($jar);
@@ -201,7 +216,9 @@ class CloudFlareAdmin extends LeftAndMain implements PermissionProvider
     /**
      * Produces the single url form for the admin GUI
      *
-     * @return static
+     * @todo Test
+     *
+     * @return CloudFlareSingleUrlForm
      */
     public function FormSingleUrlForm()
     {

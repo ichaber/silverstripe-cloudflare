@@ -1,4 +1,8 @@
 <?php
+namespace SteadLane\CloudFlare\Tests;
+
+use SteadLane\CloudFlare\CloudFlare_Purge;
+use SilverStripe\Dev\SapphireTest;
 
 /**
  * Class CloudFlareTest

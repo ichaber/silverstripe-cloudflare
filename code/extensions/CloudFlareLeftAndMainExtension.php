@@ -1,4 +1,10 @@
 <?php
+
+namespace SteadLane\CloudFlare\Extensions;
+use SilverStripe\Admin\LeftAndMainExtension;
+use SteadLane\CloudFlare\CloudFlare;
+use SteadLane\CloudFlare\CloudFlare_Purge;
+
 /**
  * Class CloudFlareLeftAndMainExtension
  *
@@ -21,7 +27,7 @@ class CloudFlareLeftAndMainExtension extends LeftAndMainExtension
     public function purgesinglepageAction($request)
     {
         CloudFlare::singleton()->canUser('CF_PURGE_PAGE');
-        
+
         if (empty($request) || empty($request['ID'])) {
             return;
         }

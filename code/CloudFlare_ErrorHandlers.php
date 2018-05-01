@@ -1,6 +1,10 @@
 <?php
 
-class CloudFlare_ErrorHandlers extends Object
+namespace SteadLane\CloudFlare;
+
+use Monolog\ErrorHandler;
+
+class CloudFlare_ErrorHandlers extends ErrorHandler
 {
 
     /**

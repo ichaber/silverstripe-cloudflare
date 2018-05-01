@@ -1,4 +1,10 @@
 <?php
+namespace SteadLane\CloudFlare\Tests;
+
+use SteadLane\CloudFlare\CloudFlare;
+use SilverStripe\Dev\SapphireTest;
+use SilverStripe\Core\Extension;
+use SilverStripe\Dev\TestOnly;
 /**
  * Class CloudFlareTest
  *
@@ -61,7 +67,7 @@ class CloudFlareTest extends SapphireTest
      * @param $method
      */
     public function removeExtensibleMethod($method) {
-        $extensions = Object::get_extensions('CloudFlare');
+        $extensions = CloudFlare::singleton()->getExtensionInstances();
         foreach ($extensions as $class) {
             $tmp = new $class();
             if (method_exists($tmp, $method)) {
